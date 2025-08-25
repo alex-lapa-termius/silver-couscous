@@ -10,6 +10,6 @@
     "publish": false
   },
   "github": {
-    "release": false
+    "release": true
   }
 }
