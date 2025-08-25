@@ -63,10 +63,25 @@ jobs:
         # Use release-it to handle version bump, commit, tag, and changelog
         npx release-it $clean_version --ci
 
-  deploy-staging:
+  create-rc-build:
     runs-on: ubuntu-latest
     needs: create-release
-    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+          
+    - name: Deploy to RC
+      run: |
+        echo "Release build is ready"
+
+  deploy-beta:
+    runs-on: ubuntu-latest
+    needs: create-rc-build
+    environment: beta
     steps:
     - uses: actions/checkout@v4
     
@@ -78,14 +93,14 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Deploy to Staging
+    - name: Deploy to Beta
       run: |
-        echo "Deploying version ${{ inputs.version }} to staging environment..."
-        echo "Application deployed to staging"
+        echo "Deploying version ${{ inputs.version }} to beta environment..."
+        echo "Application deployed to beta"
 
   deploy-production:
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    needs: deploy-beta
     environment: production
     steps:
     - uses: actions/checkout@v4
