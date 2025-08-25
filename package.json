@@ -1,0 +1,12 @@
+{
+  "name": "silver-couscous",
+  "version": "1.0.0",
+  "description": "Basic JavaScript function with tests",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

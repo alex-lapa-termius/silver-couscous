@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run tests
+      run: npm test
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+    
+    - name: Configure git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Update package.json version
+      run: |
+        version="${{ inputs.version }}"
+        # Remove 'v' prefix if present
+        clean_version=${version#v}
+        npm version $clean_version --no-git-tag-version
+        git add package.json
+        git commit -m "chore: bump version to $version"
+        git push origin main
+    
+    - name: Get latest tag
+      id: latest-tag
+      run: |
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [ -n "${{ steps.latest-tag.outputs.latest_tag }}" ]; then
+          echo "Generating changelog since ${{ steps.latest-tag.outputs.latest_tag }}"
+          changelog=$(git log --pretty=format:"- %s (%h)" ${{ steps.latest-tag.outputs.latest_tag }}..HEAD)
+        else
+          echo "No previous tags found, generating changelog from beginning"
+          changelog=$(git log --pretty=format:"- %s (%h)")
+        fi
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$changelog" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ inputs.version }}
+        release_name: Release ${{ inputs.version }}
+        body: |
+          ## Changes
+          ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: create-release
+    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Deploy to Staging
+      run: |
+        echo "Deploying version ${{ inputs.version }} to staging environment..."
+        echo "Application deployed to staging"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Deploy to Production
+      run: |
+        echo "Deploying version ${{ inputs.version }} to production environment..."
+        echo "Application deployed to production"
