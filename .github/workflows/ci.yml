@@ -52,6 +52,8 @@ jobs:
         git config --global user.name "GitHub Action"
     
     - name: Create release with release-it
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         version="${{ inputs.version }}"
         # Remove 'v' prefix if present for release-it
