@@ -41,18 +41,31 @@ jobs:
     
     - name: Configure git
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
     
     - name: Update package.json version
       run: |
         version="${{ inputs.version }}"
         # Remove 'v' prefix if present
         clean_version=${version#v}
-        npm version $clean_version --no-git-tag-version
+        echo "Updating package.json version to: $clean_version"
+        
+        # Update package.json manually using jq or sed
+        if command -v jq &> /dev/null; then
+          jq --arg version "$clean_version" '.version = $version' package.json > tmp.json && mv tmp.json package.json
+        else
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$clean_version\"/" package.json
+        fi
+        
+        # Verify the change
+        echo "Updated package.json:"
+        cat package.json
+        
+        # Commit and push
         git add package.json
         git commit -m "chore: bump version to $version"
-        git push origin main
+        git push
     
     - name: Get latest tag
       id: latest-tag
