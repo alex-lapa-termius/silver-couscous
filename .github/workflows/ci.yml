@@ -61,7 +61,7 @@ jobs:
         echo "Creating release for version: $clean_version"
         
         # Use release-it to handle version bump, commit, tag, and changelog
-        npx release-it $clean_version --ci --no-npm
+        npx release-it $clean_version --ci
 
   deploy-staging:
     runs-on: ubuntu-latest
