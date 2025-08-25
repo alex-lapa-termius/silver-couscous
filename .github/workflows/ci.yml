@@ -43,66 +43,23 @@ jobs:
       with:
         node-version: 20.x
     
+    - name: Install dependencies
+      run: npm install
+    
     - name: Configure git
       run: |
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
     
-    - name: Update package.json version
+    - name: Create release with release-it
       run: |
         version="${{ inputs.version }}"
-        # Remove 'v' prefix if present
+        # Remove 'v' prefix if present for release-it
         clean_version=${version#v}
-        echo "Updating package.json version to: $clean_version"
+        echo "Creating release for version: $clean_version"
         
-        # Update package.json manually using jq or sed
-        if command -v jq &> /dev/null; then
-          jq --arg version "$clean_version" '.version = $version' package.json > tmp.json && mv tmp.json package.json
-        else
-          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$clean_version\"/" package.json
-        fi
-        
-        # Verify the change
-        echo "Updated package.json:"
-        cat package.json
-        
-        # Commit and push
-        git add package.json
-        git commit -m "chore: bump version to $version"
-        git push
-    
-    - name: Get latest tag
-      id: latest-tag
-      run: |
-        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
-    
-    - name: Generate changelog
-      id: changelog
-      run: |
-        if [ -n "${{ steps.latest-tag.outputs.latest_tag }}" ]; then
-          echo "Generating changelog since ${{ steps.latest-tag.outputs.latest_tag }}"
-          changelog=$(git log --pretty=format:"- %s (%h)" ${{ steps.latest-tag.outputs.latest_tag }}..HEAD)
-        else
-          echo "No previous tags found, generating changelog from beginning"
-          changelog=$(git log --pretty=format:"- %s (%h)")
-        fi
-        echo "changelog<<EOF" >> $GITHUB_OUTPUT
-        echo "$changelog" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-    
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ inputs.version }}
-        release_name: Release ${{ inputs.version }}
-        body: |
-          ## Changes
-          ${{ steps.changelog.outputs.changelog }}
-        draft: false
-        prerelease: false
+        # Use release-it to handle version bump, commit, tag, and changelog
+        npx release-it $clean_version --ci --no-npm
 
   deploy-staging:
     runs-on: ubuntu-latest
